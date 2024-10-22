@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Chekov</title>
+    </head>
+    <body>
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn">Stop Recording</button>
+        <button id="enableAudioBtn">Enable Audio Playback</button>
+        <script>
+            const TIME_SLICE = 100
+            const WS_HOST = "localhost"
+            const WS_PORT = 8765
+
+            const WS_URL = `ws://${WS_HOST}:${WS_PORT}`
+            const ws = new WebSocket(WS_URL)
+
+            ws.onopen = () => console.log("WebSocket connection established")
+            ws.onclose = () => console.log("WebSocket connection closed")
+            ws.onerror = (e) => console.error("WebSocket error:", e)
+            ws.onmessage = (event) => collectVoiceAnswers(event)
+
+            let mediaRecorder
+            let audioEnabled = false
+
+            const audioQueue = []
+            let isPlaying = false
+
+            async function startRecord() {
+                const userMediaSettings = {
+                    audio: true,
+                }
+                const stream = await navigator.mediaDevices.getUserMedia(
+                    userMediaSettings
+                )
+                mediaRecorder = new MediaRecorder(stream)
+                mediaRecorder.ondataavailable = streamData
+                mediaRecorder.start(TIME_SLICE)
+            }
+
+            function streamData(event) {
+                if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+                    wsSend(event.data)
+                }
+            }
+
+            function sendAfterGreetingsAnswer() {
+                wsSend("greetings")
+            }
+
+            function wsSend(data) {
+                ws.send(data)
+            }
+
+            function stopRecord() {
+                if (mediaRecorder) {
+                    mediaRecorder.stop()
+                }
+            }
+
+            function collectVoiceAnswers(event) {
+                if (!audioEnabled) return
+
+                const { data, type } = JSON.parse(event.data)
+
+                const audioData = atob(data)
+                const byteArray = new Uint8Array(audioData.length)
+
+                for (let i = 0; i < audioData.length; i++) {
+                    byteArray[i] = audioData.charCodeAt(i)
+                }
+
+                const audioBlob = new Blob([byteArray], { type: "audio/wav" })
+                const audioUrl = URL.createObjectURL(audioBlob)
+                const audio = new Audio(audioUrl)
+
+                audioQueue.push({audio, type})
+                if (!isPlaying) {
+                    playNextAudio()
+                }
+            }
+
+            function testAudio() {
+                const testAudio = new Audio(
+                    "https://www.soundjay.com/buttons/button-1.wav"
+                )
+                testAudio.muted = true
+                testAudio
+                    .play()
+                    .then(() => {
+                        audioEnabled = true
+                        console.log("Audio playback enabled")
+                    })
+                    .catch((error) =>
+                        console.error("Error enabling audio:", error)
+                    )
+            }
+
+            async function playNextAudio() {
+                if (audioQueue.length === 0) {
+                    isPlaying = false
+                    return
+                }
+
+                isPlaying = true
+                const {audio, type} = audioQueue.shift()
+                try {
+                    await new Promise((resolve, reject) => {
+                        audio.onended = resolve
+                        audio.onerror = reject
+                        audio.play().catch(reject)
+                    })
+                    if (type === "greetings") sendAfterGreetingsAnswer()
+                    playNextAudio()
+                } catch (e) {
+                    console.error("Error playing audio:", e)
+                    isPlaying = false
+                }
+            }
+
+            document
+                .getElementById("startBtn")
+                .addEventListener("click", startRecord)
+            document
+                .getElementById("stopBtn")
+                .addEventListener("click", stopRecord)
+            document
+                .getElementById("enableAudioBtn")
+                .addEventListener("click", testAudio)
+        </script>
+    </body>
+</html>

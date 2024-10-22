@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "Chekov"
+version = "0.1.0"
+description = ""
+authors = ["wWrongName <wwr0ngn4m3@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+python-dotenv = "^1.0.1"
+python-telegram-bot = "^21.5"
+pydub = "^0.25.1"
+llvmlite = "^0.43.0"
+numba = "^0.60.0"
+openai-whisper = "^20231117"
+tts = "^0.22.0"
+transformers = "^4.44.2"
+accelerate = "^0.34.0"
+sentencepiece = "^0.2.0"
+langchain-ollama = "^0.1.3"
+websockets = "^13.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

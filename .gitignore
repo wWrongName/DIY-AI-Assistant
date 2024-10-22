@@ -1,0 +1,5 @@
+.env
+.venv
+artifacts/*
+!artifacts/ws_bot
+__pycache__
